@@ -4,6 +4,12 @@ build/
 *.a
 *.log
 
+# Misc
+*~
+*.bak
+secrets/*
+*.log
+
 # Nohup
 nohup.out
 
