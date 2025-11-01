@@ -27,3 +27,6 @@ venv.bak/
 __pycache__/
 *.py[codz]
 *$py.class
+
+# Mkdocs site
+site/
