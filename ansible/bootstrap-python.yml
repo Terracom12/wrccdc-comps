@@ -1,0 +1,8 @@
+---
+- name: Bootstrap Alpine hosts with Python and Sudo
+  hosts: pangea
+  gather_facts: false
+  tasks:
+    - name: Install Python3
+      # This feels REALLY jank, but it seems to work
+      ansible.builtin.raw: echo | su - -c 'apk add --no-cache python3'

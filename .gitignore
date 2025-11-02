@@ -27,3 +27,12 @@ venv.bak/
 __pycache__/
 *.py[codz]
 *$py.class
+
+# Mkdocs site
+site/
+
+# Ansible vault passwords
+*.pass
+
+# Generated reports
+reports/

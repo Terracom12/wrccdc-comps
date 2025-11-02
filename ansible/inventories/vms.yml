@@ -1,0 +1,28 @@
+all:
+  vars:
+    vault_admin_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256;vms
+          66316262383934326562373864643137343831303730356139633237356336633332333331623566
+          6632393239666330646236613237633963626364616561660a366561393663373965646161393839
+          36663664363364663131363364393237303862666136616238353833623536376334666362343330
+          3838313438323738370a343531346635666630373237326230333538366433623238326665656166
+          3434
+  children:
+    linux:
+      children:
+        alpine:
+          hosts:
+            # ssh keys MUST be copied!
+            pangea:  # alpine
+              ansible_host: 192.168.100.2
+              ansible_user: matt
+        ubuntu:
+          hosts:
+            hatchery: # ubuntu
+              ansible_host: 192.168.100.76
+              ansible_user: matt
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        # tell ansible to read password from vault variable
+        ansible_ssh_pass: "{{ vault_admin_password }}"
+        ansible_become_pass: "{{ vault_admin_password }}"

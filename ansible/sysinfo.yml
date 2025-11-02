@@ -1,0 +1,21 @@
+---
+- name: Sanity check – gather system info
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Show OS and kernel
+      ansible.builtin.debug:
+        msg: "{{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_kernel }})"
+
+    - name: Check disk usage
+      ansible.builtin.command: df -h /
+      register: disk
+    - ansible.builtin.debug:
+        var: disk.stdout_lines
+
+    - name: Check running users
+      ansible.builtin.command: who
+      register: whoout
+    - ansible.builtin.debug:
+        var: whoout.stdout_lines
