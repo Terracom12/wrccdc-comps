@@ -30,3 +30,9 @@ __pycache__/
 
 # Mkdocs site
 site/
+
+# Ansible vault passwords
+*.pass
+
+# Generated reports
+reports/

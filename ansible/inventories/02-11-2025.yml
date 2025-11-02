@@ -1,0 +1,44 @@
+all:
+  vars:
+    vault_admin_password: none #!! TODO:
+  children:
+    linux:
+      children:
+        alpine:
+          hosts:
+            pangea:
+              ansible_host: 10.0.0.2
+            laboratory:
+              ansible_host: 10.0.0.20
+        ubuntu:
+          hosts:
+            hatchery:
+              ansible_host: 10.0.0.76
+            hellcreek:
+              ansible_host: 10.0.0.103
+        fedora:
+          hosts:
+            badlands:
+              ansible_host: 10.0.0.104
+            tarpit:
+              ansible_host: 10.0.0.170
+      vars:
+        ansible_user: admin
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        # tell ansible to read password from vault variable
+        ansible_ssh_pass: "{{ vault_admin_password }}"
+        ansible_become_pass: "{{ vault_admin_password }}"
+
+    windows:
+      hosts:
+        trex:
+          ansible_host: 10.0.0.12
+        fossil:
+          ansible_host: 10.0.0.20
+      vars:
+        ansible_user: Administrator
+        ansible_connection: winrm
+        ansible_winrm_transport: basic
+        ansible_winrm_server_cert_validation: ignore
+        ansible_port: 5985
+        ansible_password: "{{ vault_admin_password }}"

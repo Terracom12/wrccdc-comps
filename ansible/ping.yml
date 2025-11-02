@@ -1,0 +1,7 @@
+---
+- name: Sanity check – connectivity
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ping target
+      ansible.builtin.ping:

@@ -1,0 +1,181 @@
+---
+- name: 0. Create Triage Report Directories
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create base report directory
+      ansible.builtin.file:
+        path: "./reports/triage"
+        state: directory
+        mode: '0755'
+    - name: Create host-specific directories
+      ansible.builtin.file:
+        path: "./reports/triage/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ groups['all'] }}"
+
+- name: 1. Triage Linux Hosts
+  hosts: linux
+  become: true # Most triage commands need root access
+  gather_facts: true
+  tasks:
+    - name: Gather basic facts
+      ansible.builtin.copy:
+        content: |
+          Hostname: {{ ansible_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+          Uptime: {{ ansible_uptime_seconds | int | human_readable('seconds') }}
+          CPUs: {{ ansible_processor_vcpus }}
+          Memory: {{ (ansible_memtotal_mb * 1024 * 1024) | ansible.builtin.human_readable('bytes') }}
+        dest: "./reports/triage/{{ inventory_hostname }}/00_basic_facts.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+    - name: Get user and group information
+      ansible.builtin.shell: |
+        echo "=== /etc/passwd (Users) ==="
+        cat /etc/passwd
+        echo "\n=== /etc/group (Groups) ==="
+        cat /etc/group
+        echo -e "\n=== sudoers (non-commented) ==="
+        cat /etc/sudoers | grep -vE '^$|^#'
+      args:
+        executable: /bin/bash
+      register: user_info
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save user info
+      ansible.builtin.copy:
+        content: "{{ user_info.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/01_users.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+    - name: Get network and process info
+      ansible.builtin.shell: |
+        echo "=== Running Processes (ps auxwww) ==="
+        ps auxwww
+        echo -e "\n=== Listening Sockets (ss -ltnup) ==="
+        ss -ltnup
+      args:
+        executable: /bin/bash
+      register: net_proc_info
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save network and process info
+      ansible.builtin.copy:
+        content: "{{ net_proc_info.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/02_net_proc.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+    - name: Get firewall rules
+      ansible.builtin.shell: |
+        echo "=== iptables (iptables-save) ==="
+        iptables-save
+        
+        echo -e "\n=== UFW Status (Ubuntu) ==="
+        if command -v ufw >/dev/null; then ufw status verbose; else echo "ufw not found."; fi
+        
+        echo -e "\n=== firewalld Status (Fedora) ==="
+        if command -v firewall-cmd >/dev/null; then firewall-cmd --list-all; else echo "firewalld not found."; fi
+      args:
+        executable: /bin/bash
+      register: firewall_info
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save firewall info
+      ansible.builtin.copy:
+        content: "{{ firewall_info.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/03_firewall.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+- name: 2. Triage Windows Hosts
+  hosts: windows
+  gather_facts: true
+  tasks:
+    - name: Gather basic facts
+      ansible.builtin.copy:
+        content: |
+          Hostname: {{ ansible_hostname }}
+          OS: {{ ansible_os_name }}
+          Version: {{ ansible_os_version }}
+          Uptime: {{ ansible_uptime_seconds | int | ansible.builtin.human_readable('seconds') }}
+          CPUs: {{ ansible_processor_vcpus }}
+          Memory: {{ (ansible_memtotal_mb * 1024 * 1024) | ansible.builtin.human_readable('bytes') }}
+        dest: "./reports/triage/{{ inventory_hostname }}/00_basic_facts.txt"
+      delegate_to: localhost
+
+    - name: Get user and group information
+      ansible.windows.win_powershell:
+        script: |
+          echo "=== Local Users ==="
+          Get-LocalUser | Select-Object Name, Enabled, PasswordLastSet, Description | Format-Table -AutoSize
+
+          echo "=== Administrator Group Members ==="
+          Get-LocalGroupMember -Group "Administrators" | Select-Object Name, PrincipalSource | Format-Table -AutoSize
+
+          echo "=== Remote Desktop Users Group Members ==="
+          Get-LocalGroupMember -Group "Remote Desktop Users" | Select-Object Name, PrincipalSource | Format-Table -AutoSize
+      register: user_info_win
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save user info
+      ansible.builtin.copy:
+        content: "{{ user_info_win.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/01_users.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+    - name: Get network and process info
+      ansible.windows.win_powershell:
+        script: |
+          echo "=== Running Processes ==="
+          Get-Process | Select-Object Name, Id, Path, Company | Format-Table -AutoSize
+
+          echo "=== Listening Sockets ==="
+          Get-NetTCPConnection -State Listen | Select-Object LocalAddress, LocalPort, OwningProcess | Format-Table -AutoSize
+      register: net_proc_info_win
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save network and process info
+      ansible.builtin.copy:
+        content: "{{ net_proc_info_win.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/02_net_proc.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
+
+    - name: Get firewall rules
+      ansible.windows.win_powershell:
+        script:
+          echo "=== Firewall Profiles ==="
+          Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, DefaultOutboundAction | Format-Table -AutoSize
+
+          echo "=== Enabled 'Allow' Firewall Rules ==="
+          Get-NetFirewallRule -Action Allow -Enabled True | Select-Object DisplayName, Direction, Profile | Format-Table -AutoSize
+      register: firewall_info_win
+      changed_when: false
+      ignore_errors: true
+
+    - name: Save firewall info
+      ansible.builtin.copy:
+        content: "{{ firewall_info_win.stdout | default('Error or no output') }}"
+        dest: "./reports/triage/{{ inventory_hostname }}/03_firewall.txt"
+      delegate_to: localhost
+      vars:
+        ansible_become: false
