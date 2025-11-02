@@ -1,0 +1,1 @@
+[active directory](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview) (or AD for short) is a domain service managing all sorts of things on Windows.
