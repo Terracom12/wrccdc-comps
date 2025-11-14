@@ -1,4 +1,4 @@
-# WRCCDC Prep
+# WRCCDC Preparation
 
 Preparation content for WRCCDC.
 
