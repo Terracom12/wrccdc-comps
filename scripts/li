@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+#
+# List hosts as by hosts.txt
+#
+
+set -euo pipefail
+[[ -v DEBUG ]] && set -x
+
+hosts_file='hosts.txt'
+
+if [[ ! -f $hosts_file ]]; then
+    >&2 echo "File \"$hosts_file\" does not exist"
+    exit 1
+fi
+
+if [[ $# -gt 0 && $1 =~ -h|--help ]]; then
+    >&2 echo 'Usage:'
+    >&2 echo '  li ips'
+    >&2 echo '  li names'
+    exit 1
+fi
+
+content="$(grep -v '^#' "$hosts_file" | sed -E '/^\s*$/d')"
+
+opt="${1:-}"
+case "$opt" in
+i*)
+    cut -f1 -d' ' <<<"$content"
+    ;;
+n*)
+    awk '{print $NF}' <<<"$content"
+    ;;
+*)
+    [[ -z $opt ]] || >&2 echo 'Invalid option. See --help'
+    echo "$content"
+    ;;
+esac

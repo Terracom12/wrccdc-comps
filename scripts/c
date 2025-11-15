@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+#
+# Connect to host from hosts.txt
+# Supports prefix-matching
+#
+
+set -euo pipefail
+[[ -v DEBUG ]] && set -x
+
+# get password from default-pass.txt
+getpass() {
+    pass_file=default-pass.txt
+    if [[ ! -f $pass_file ]]; then
+        >&2 echo "File \"$pass_file\" does not exist"
+        exit 1
+    fi
+
+    pass="$(cat "$pass_file" | grep -v '^#')"
+    if [[ -z $pass ]]; then
+        >&2 echo "No password found in \"$pass_file\""
+        exit 1
+    fi
+
+    echo "$pass"
+}
+
+hosts_file='hosts.txt'
+
+if [[ ! -f $hosts_file ]]; then
+    >&2 echo "File \"$hosts_file\" does not exist"
+    exit 1
+fi
+
+if [[ $# -lt 1 || $1 =~ -h|--help ]]; then
+    >&2 echo 'Usage:'
+    >&2 echo '  c <host> [username] -- [command...]'
+    exit 1
+fi
+host="$1"
+shift
+
+if [[ $# -lt 1 || $1 == -- ]]; then
+    username=root
+else
+    username="$1"
+    shift
+fi
+
+if [[ $# -gt 0 && $1 == '--' ]]; then
+    command=("$@")
+fi
+
+readarray -t ips < <(li ips)
+readarray -t names < <(li names)
+
+if [[ ${#ips[@]} -ne ${#names[@]} ]]; then
+    >&2 echo 'Internal error'
+    echo "Names ${#names[@]}: ${names[@]}"
+    echo "Ips ${#ips[@]}: ${ips[@]}"
+    exit 1
+fi
+
+n=${#ips[@]}
+match=
+for ((i = 0; i < n; i++)); do
+    h="${names[i]}"
+    if [[ "$h" == "$host"* ]]; then
+        if [[ -n $match ]]; then
+            >&2 echo 'Ambiguous; multiple matches:'
+            >&2 echo "${names[$match]} and $h"
+            exit 1
+        fi
+        match=$i
+    fi
+done
+
+if [[ -z $match ]]; then
+    >&2 echo 'No match. Hosts:'
+    >&2 echo "${names[@]}"
+    exit 1
+fi
+
+echo "Connecting to \"${names[$match]}\" @ ${ips[$match]}"
+if ! ssh -o PasswordAuthentication=no -o ConnectTimeout=1 "$username"@"${ips[$match]}" "${command[@]}"; then
+    echo 'Trying sshpass...'
+    sshpass -p "$(getpass)" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=1 "$username"@"${ips[$match]}" "${command[@]}"
+fi

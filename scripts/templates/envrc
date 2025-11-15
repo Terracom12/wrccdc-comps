@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+ap() {
+    [[ $(pwd) =~ .*wrccdc.* ]] && (
+        cd "$WRCCDC_DIR/ansible" || { echo "Failed to cd $WRCCDC_DIR ??" && exit; }
+        ansible-playbook "$@"
+    )
+}
+
+PATH_add {{SCRIPTS_DIR}}

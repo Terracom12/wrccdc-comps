@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+hosts_file="hosts.txt"
+
+set -euo pipefail
+[[ -v DEBUG ]] && set -x
+
+# ensure_line <file> <line-contents>
+ensure_line() {
+    if ! grep -qF "$2" "$1" &>/dev/null; then
+        echo "$2" | sudo tee -a "$1" >/dev/null
+        >&2 echo "Added line \"$2\" to \"$1\""
+    else
+        >&2 echo "Line \"$2\" already exists in \"$1\""
+    fi
+}
+
+# remove_line <file> <line-contents>
+remove_line() {
+    if grep -qF "$2" "$1" &>/dev/null; then
+        grep -vF "$2" "$1" | sudo tee "$1" >/dev/null
+        >&2 echo "Removed line \"$2\" from \"$1\""
+    else
+        >&2 echo "Line \"$2\" does not exist in \"$1\""
+    fi
+}
+
+if [[ $# -gt 0 && $1 == "rm" ]]; then
+    rm=1
+elif [[ $# -gt 0 && $1 == "l" ]]; then
+    echo "/etc/hosts:"
+    cat /etc/hosts
+    exit
+fi
+
+if [[ ! -f $hosts_file ]]; then
+    >&2 echo "File \"$hosts_file\" does not exist"
+    exit 1
+fi
+
+while read -r hs; do
+    if [[ -v rm ]]; then
+        remove_line /etc/hosts "$hs"
+    else
+        ensure_line /etc/hosts "$hs"
+    fi
+done <"$hosts_file"

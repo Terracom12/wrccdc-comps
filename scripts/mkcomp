@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+#
+# Make a new directory for a new competition enviornment
+#
+
+wrccdc_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+scripts_dir="$wrccdc_dir/scripts"
+
+# populate_template <file> [key value ...]
+populate_template() {
+    content="$(cat "$scripts_dir/templates/$1")"
+    shift
+
+    while [[ $# -gt 1 ]]; do
+        k="$1"
+        v="$2"
+        shift 2
+
+        # https://unix.stackexchange.com/a/255859
+        content="$(K="$k" V="$v" perl -pe 's/{{$ENV{K}}}/"$ENV{V}"/g' <<<"$content")"
+    done
+
+    echo -n "$content"
+}
+
+if [[ $# -ne 1 ]]; then
+    >&2 echo 'Usage: mkcomp <dir>'
+    exit 1
+fi
+
+loc="$1"
+hosts_file="$2"
+
+echo "Creating comp env at '$loc'"
+
+mkdir -p "$loc"
+populate_template hosts.txt NAME "$loc" >"$loc/hosts.txt"
+populate_template envrc SCRIPTS_DIR "$scripts_dir" >"$loc/.envrc"

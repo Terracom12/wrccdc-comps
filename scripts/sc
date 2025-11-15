@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+#
+# Scan all hosts from hosts.txt using nmap
+#
+
+set -euo pipefail
+[[ -v DEBUG ]] && set -x
+
+hosts_file='hosts.txt'
+
+if [[ ! -f $hosts_file ]]; then
+    >&2 echo "File \"$hosts_file\" does not exist"
+    exit 1
+fi
+
+if [[ $# -ge 1 && $1 =~ -h|--help ]]; then
+    >&2 echo 'Usage:'
+    >&2 echo '  sc [nmap-args...]'
+    >&2 echo '  sc -re <name-regex> [nmap-args...]'
+    exit 1
+fi
+
+if [[ $# -ge 1 && $1 == -re ]]; then
+    [[ $# -eq 1 ]] && >&2 echo '-re requires an argument. See --help' && exit 1
+    matches="$(li | grep -E "\W$2")"
+    >&2 echo "Matches:"
+    >&2 echo "$matches"
+    >&2 echo
+
+    readarray -t ips < <(cut -f1 -d' ' <<<"$matches")
+    shift 2
+else
+    readarray -t ips < <(li ips)
+fi
+
+nmap_args=("$@")
+
+>&2 echo "Scanning ips: ${ips[@]}"
+
+nmap "${nmap_args[@]}" -- "${ips[@]}"

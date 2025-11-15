@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+[[ -v DEBUG ]] && set -x
+
+if command -v yq &>/dev/null; then
+    readarray -t hosts < <(yq '.. | .hosts? | select(.) | to_entries | .[] | select(.value) | "\(.value.ansible_host) \(.key)"' inventory)
+else
+    >&2 echo "yq is not available"
+    exit 1
+fi
+
+for ((i = 0; i < ${#hosts[@]}; i++)); do
+    echo "${hosts[i]}"
+done
